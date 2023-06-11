@@ -31,7 +31,8 @@ After the two steps above, your data directory will like bellow:
 ```bash
 python dtu_eval.py --method mvsnet --pred_dir "./Preidct/mvsnet/" --gt_dir "./SampleSet/MVS Data"
 ```
-
+- Note:  
+If you encounter a memory shortage issue, it is possible that the version of Python you are installing is 32-bit, which has limitations on memory usage. Therefore, it is recommended to install 64-bit Python
 
 ## Compare with MATLAB Evalution result
 We compare the evaluation results of matlab and python in r-mvsnet and casmvsnet. The results obtained from this implementation are slightly higher than those from MATLAB code but more fast and memory saving, can be used during experiments. The difference in results between the two is mainly due to random shuffling in the code. Results are shown bellow:
