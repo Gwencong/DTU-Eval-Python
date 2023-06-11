@@ -1,5 +1,5 @@
 numpy
-open3d
+plyfile
 tqdm
 scipy
 scikit-learn

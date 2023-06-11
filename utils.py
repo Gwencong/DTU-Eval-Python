@@ -1,17 +1,33 @@
 import os
 import time
 import numpy as np
-import open3d as o3d
 
 from tqdm import tqdm
+from pathlib import Path
 from scipy.io import loadmat
 from sklearn import neighbors as skln
+from plyfile import PlyData, PlyElement
+
+
+def read_ply(file):
+    data = PlyData.read(file)
+    vertex = data['vertex']
+    data_pcd = np.stack([vertex['x'], vertex['y'], vertex['z']], axis=-1)
+    return data_pcd
 
 def write_vis_pcd(file, points, colors):
-    pcd = o3d.geometry.PointCloud()
-    pcd.points = o3d.utility.Vector3dVector(points)
-    pcd.colors = o3d.utility.Vector3dVector(colors)
-    o3d.io.write_point_cloud(file, pcd)
+    points = np.array([tuple(v) for v in points], dtype=[('x', 'f4'), ('y', 'f4'), ('z', 'f4')])
+    colors = np.array([tuple(v) for v in colors], dtype=[('red', 'u1'), ('green', 'u1'), ('blue', 'u1')])
+
+    vertex_all = np.empty(len(points), points.dtype.descr + colors.dtype.descr)
+    for prop in points.dtype.names:
+        vertex_all[prop] = points[prop]
+    for prop in colors.dtype.names:
+        vertex_all[prop] = colors[prop]
+
+    el = PlyElement.describe(vertex_all, 'vertex')
+    PlyData([el]).write(file)
+
 
 def comput_one_scan(scanid,             # the scan id to be computed 
                     pred_ply,           # predict points cloud file path, such as "./mvsnet001_l3.ply"
@@ -42,8 +58,7 @@ def comput_one_scan(scanid,             # the scan id to be computed
     thresh = down_dense
     pbar = tqdm(total=8)
     pbar.set_description(f'[scan{scanid}] read data pcd')
-    data_pcd_o3d = o3d.io.read_point_cloud(pred_ply)
-    data_pcd = np.asarray(data_pcd_o3d.points)
+    data_pcd = read_ply(pred_ply)
 
     pbar.update(1)
     pbar.set_description(f'[scan{scanid}] random shuffle pcd index')
@@ -79,8 +94,7 @@ def comput_one_scan(scanid,             # the scan id to be computed
 
     pbar.update(1)
     pbar.set_description(f'[scan{scanid}] read STL pcd')
-    stl_pcd = o3d.io.read_point_cloud(gt_ply)
-    stl = np.asarray(stl_pcd.points)
+    stl = read_ply(gt_ply)
 
     pbar.update(1)
     pbar.set_description(f'[scan{scanid}] compute data2stl')
@@ -104,11 +118,12 @@ def comput_one_scan(scanid,             # the scan id to be computed
     pbar.update(1)
     pbar.set_description(f'[scan{scanid}] visualize error')
     if vis:
+        Path(vis_out_dir).mkdir(parents=True, exist_ok=True)
         vis_dist = vis_thresh
-        R = np.array([[1,0,0]], dtype=np.float64)
-        G = np.array([[0,1,0]], dtype=np.float64)
-        B = np.array([[0,0,1]], dtype=np.float64)
-        W = np.array([[1,1,1]], dtype=np.float64)
+        R = np.array([[255,0,0]], dtype=np.float64)
+        G = np.array([[0,255,0]], dtype=np.float64)
+        B = np.array([[0,0,255]], dtype=np.float64)
+        W = np.array([[255,255,255]], dtype=np.float64)
         data_color = np.tile(B, (data_down.shape[0], 1))
         data_alpha = dist_d2s.clip(max=vis_dist) / vis_dist
         data_color[ np.where(inbound)[0][grid_inbound][in_obs] ] = R * data_alpha + W * (1-data_alpha)
